@@ -1,4 +1,5 @@
 // api/index.js - Vercel Serverless Function Entry
+const serverless = require("serverless-http");
 const express = require("express");
 const serverless = require("serverless-http");
 const cors = require("cors");
@@ -66,3 +67,4 @@ if (!process.env.VERCEL) {
 // Export for Vercel serverless function
 module.exports = app;
 module.exports.handler = serverless(app);
+
