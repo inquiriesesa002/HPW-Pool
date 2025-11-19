@@ -1,7 +1,6 @@
 // api/index.js - Vercel Serverless Function Entry
 const serverless = require("serverless-http");
 const express = require("express");
-const serverless = require("serverless-http");
 const cors = require("cors");
 require("dotenv").config();
 const connectDB = require("../config/database");
