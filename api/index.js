@@ -3,18 +3,18 @@ const serverless = require("serverless-http");
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
-const connectDB = require("../config/database");
+const connectDB = require("../backend/config/database");
 
 // Import routes
-const authRoutes = require("../routes/auth");
-const locationRoutes = require("../routes/locations");
-const professionRoutes = require("../routes/professions");
-const professionalRoutes = require("../routes/professionals");
-const companyRoutes = require("../routes/companies");
-const jobRoutes = require("../routes/jobs");
-const traineeRoutes = require("../routes/trainees");
-const uploadRoutes = require("../routes/upload");
-const adminRoutes = require("../routes/admin");
+const authRoutes = require("../backend/routes/auth");
+const locationRoutes = require("../backend/routes/locations");
+const professionRoutes = require("../backend/routes/professions");
+const professionalRoutes = require("../backend/routes/professionals");
+const companyRoutes = require("../backend/routes/companies");
+const jobRoutes = require("../backend/routes/jobs");
+const traineeRoutes = require("../backend/routes/trainees");
+const uploadRoutes = require("../backend/routes/upload");
+const adminRoutes = require("../backend/routes/admin");
 
 const app = express();
 
@@ -54,14 +54,6 @@ app.use("/api/admin", adminRoutes);
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "HPW Pool API running" });
 });
-
-// Local development only
-if (!process.env.VERCEL) {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, () =>
-    console.log(`Local API running at http://localhost:${PORT}`)
-  );
-}
 
 // Export for Vercel serverless function
 module.exports = app;
