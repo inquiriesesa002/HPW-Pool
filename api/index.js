@@ -1,21 +1,3 @@
-Skip to content
-Sylvie's projects
-Sylvie's projects
-
-Hobby
-
-hpw-pool
-
-6j7mhtQsd
-
-
-Find…
-F
-
-Source
-Output
-api/index.js
-
 // api/index.js - Vercel Serverless Function Entry
 try {
   const serverless = require("serverless-http");
@@ -52,4 +34,58 @@ try {
       }
     }
   };
-hpw-pool – Deployment Source – Vercel
+
+  // Initialize connection (non-blocking)
+  connectDBCached().catch(err => {
+    console.error("Failed to initialize DB connection:", err);
+  });
+
+  // Middleware
+  app.use(cors());
+  app.use(express.json());
+  app.use(express.urlencoded({ extended: true }));
+
+  // Routes
+  app.use("/api/auth", authRoutes);
+  app.use("/api/locations", locationRoutes);
+  app.use("/api/professions", professionRoutes);
+  app.use("/api/professionals", professionalRoutes);
+  app.use("/api/companies", companyRoutes);
+  app.use("/api/jobs", jobRoutes);
+  app.use("/api/trainees", traineeRoutes);
+  app.use("/api/upload", uploadRoutes);
+  app.use("/api/admin", adminRoutes);
+
+  // Health check
+  app.get("/api/health", (req, res) => {
+    res.json({ success: true, message: "HPW Pool API running" });
+  });
+
+  // Root API endpoint
+  app.get("/", (req, res) => {
+    res.json({ success: true, message: "HPW Pool API - Use /api routes" });
+  });
+
+  // Error handling middleware
+  app.use((err, req, res, next) => {
+    console.error("Error:", err);
+    res.status(err.status || 500).json({
+      success: false,
+      message: err.message || "Internal Server Error",
+      ...(process.env.NODE_ENV === "development" && { stack: err.stack })
+    });
+  });
+
+  // Export for Vercel serverless function
+  module.exports = serverless(app);
+} catch (error) {
+  console.error("Error initializing serverless function:", error);
+  // Export a minimal error handler
+  module.exports = async (req, res) => {
+    res.status(500).json({
+      success: false,
+      message: "Server initialization error",
+      error: error.message
+    });
+  };
+}
