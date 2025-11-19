@@ -18,21 +18,21 @@ const adminRoutes = require("../routes/admin");
 
 const app = express();
 
-// Connect to MongoDB (cache fix for Vercel)
+// Connect to MongoDB (fix for serverless repeated connections)
 let isConnected = false;
 
-const connectDBWithCache = async () => {
+const connectDBCached = async () => {
   if (!isConnected) {
     try {
       await connectDB();
       isConnected = true;
       console.log("MongoDB Connected");
-    } catch (error) {
-      console.error("Database Error:", error);
+    } catch (err) {
+      console.error("MongoDB Error:", err);
     }
   }
 };
-connectDBWithCache();
+connectDBCached();
 
 // Middleware
 app.use(cors());
@@ -50,19 +50,19 @@ app.use("/api/trainees", traineeRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/admin", adminRoutes);
 
-// Health Check
+// Health check
 app.get("/api/health", (req, res) => {
   res.json({ success: true, message: "HPW Pool API running" });
 });
 
 // Local development only
 if (!process.env.VERCEL) {
-  const PORT = 5000;
-  app.listen(PORT, () => {
-    console.log(`Local API running at http://localhost:${PORT}/api`);
-  });
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, () =>
+    console.log(`Local API running at http://localhost:${PORT}`)
+  );
 }
 
-// Export for Vercel serverless
+// Export for Vercel serverless function
 module.exports = app;
 module.exports.handler = serverless(app);
