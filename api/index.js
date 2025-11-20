@@ -7,7 +7,7 @@ try {
 
   const connectDB = require("../config/database");
 
-  // Import routes (NOTE: all from ./routes now)
+  // Import routes
   const authRoutes = require("../routes/auth");
   const locationRoutes = require("../routes/locations");
   const professionRoutes = require("../routes/professions");
@@ -106,11 +106,15 @@ try {
   module.exports = handler;
 
 } catch (error) {
-  module.exports = (_, res) => {
+  console.error("Server initialization error:", error);
+  console.error("Error stack:", error.stack);
+  module.exports = (req, res) => {
+    console.error("Error handler called:", error.message);
     res.status(500).json({
       success: false,
       message: "Server initialization error",
-      error: error.message
+      error: error.message,
+      stack: process.env.NODE_ENV === 'development' ? error.stack : undefined
     });
   };
 }
