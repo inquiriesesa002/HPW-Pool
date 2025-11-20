@@ -1,25 +1,22 @@
 {
-  "name": "hpw-pool-backend",
-  "version": "1.0.0",
-  "description": "Backend API for HPW Pool - Health Professional Work of Pool",
-  "main": "api/index.js",
+  "name": "hpw-pool-web",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
   "scripts": {
     "start": "node api/index.js",
-    "dev": "nodemon api/index.js",
-    "build": "echo \"No build needed for backend\"",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview",
+    "vercel-build": "echo \"No build step required\"",
+    "server": "node api/index.js",
+    "backend": "node api/index.js"
   },
-  "keywords": [
-    "health",
-    "professionals",
-    "healthcare",
-    "api",
-    "mongodb",
-    "express"
-  ],
-  "author": "HPW Pool Team",
-  "license": "MIT",
   "dependencies": {
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-router-dom": "^6.30.2",
     "bcryptjs": "^2.4.3",
     "cloudinary": "^2.8.0",
     "cors": "^2.8.5",
@@ -37,6 +34,18 @@
     "streamifier": "^0.1.1"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "@eslint/js": "^9.36.0",
+    "@tailwindcss/postcss": "^4.1.14",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.14",
+    "vite": "^7.1.7"
   }
 }
