@@ -1,17 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "echo 'Backend-only deployment - skipping frontend build'",
-  "outputDirectory": ".",
   "functions": {
-    "index.cjs": {
-      "runtime": "nodejs20.x",
-      "maxDuration": 30
+    "api/index.js": {
+      "runtime": "nodejs18.x"
     }
   },
   "routes": [
     {
       "src": "/api/(.*)",
-      "dest": "/index.cjs"
+      "dest": "/api/index.js"
     }
   ]
 }
