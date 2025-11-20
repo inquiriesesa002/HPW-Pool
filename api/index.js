@@ -20,16 +20,47 @@ try {
 
   const app = express();
 
+  // Database connection cache
   let isConnected = false;
+  let connectionPromise = null;
 
   const connectDBCached = async () => {
-    if (!isConnected) {
-      await connectDB();
-      isConnected = true;
+    if (isConnected) {
+      return;
     }
+    
+    if (!connectionPromise) {
+      connectionPromise = connectDB()
+        .then(() => {
+          isConnected = true;
+          console.log("MongoDB Connected");
+        })
+        .catch(err => {
+          console.error("MongoDB Connection Error:", err);
+          connectionPromise = null; // Reset on error to allow retry
+          throw err;
+        });
+    }
+    
+    return connectionPromise;
   };
 
-  connectDBCached().catch(err => console.error(err));
+  // Middleware to ensure DB connection before routes
+  app.use(async (req, res, next) => {
+    // Skip DB connection for health check
+    if (req.path === '/api/health' || req.path === '/api') {
+      return next();
+    }
+    
+    try {
+      await connectDBCached();
+      next();
+    } catch (err) {
+      console.error("DB connection failed:", err);
+      // Continue anyway - let routes handle errors
+      next();
+    }
+  });
 
   app.use(cors());
   app.use(express.json());
@@ -46,8 +77,29 @@ try {
   app.use("/api/upload", uploadRoutes);
   app.use("/api/admin", adminRoutes);
 
-  app.get("/api/health", (_, res) => {
-    res.json({ success: true, message: "HPW Pool API running" });
+  app.get("/api/health", async (_, res) => {
+    try {
+      // Try to check DB connection without blocking
+      if (isConnected) {
+        res.json({ 
+          success: true, 
+          message: "HPW Pool API running",
+          database: "connected"
+        });
+      } else {
+        res.json({ 
+          success: true, 
+          message: "HPW Pool API running",
+          database: "connecting"
+        });
+      }
+    } catch (err) {
+      res.json({ 
+        success: true, 
+        message: "HPW Pool API running",
+        database: "error"
+      });
+    }
   });
 
   const handler = serverless(app);
