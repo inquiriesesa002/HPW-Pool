@@ -1,7 +1,7 @@
 const mongoose = require("mongoose");
 
-let isConnected = false;       // Track if connection is already established
-let connectionPromise = null;  // Promise for ongoing connection attempt
+let isConnected = false;
+let connectionPromise = null;
 
 const connectDB = async () => {
   if (isConnected) return;
@@ -24,7 +24,7 @@ const connectDB = async () => {
       })
       .catch((err) => {
         console.error("MongoDB connection error:", err.message);
-        connectionPromise = null; // Allow retry next time
+        connectionPromise = null; // allow retry
         throw err;
       });
   }
