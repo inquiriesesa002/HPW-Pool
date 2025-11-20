@@ -1,32 +1,35 @@
-const mongoose = require('mongoose');
+const mongoose = require("mongoose");
+
+let isConnected = false;       // Track if connection is already established
+let connectionPromise = null;  // Promise for ongoing connection attempt
 
 const connectDB = async () => {
-  try {
-    // Use environment variable for MongoDB URI, fallback to local for development
-    const mongoURI = process.env.MONGODB_URI || 'mongodb+srv://inquiriesesa_db_user:9OOQm5boLEOdNZsi@cluster0.ktqsjbu.mongodb.net/?appName=Cluster0';
-    
-    if (!mongoURI || mongoURI === 'mongodb+srv://inquiriesesa_db_user:9OOQm5boLEOdNZsi@cluster0.ktqsjbu.mongodb.net/?appName=Cluster0') {
-      console.warn('Warning: Using default MongoDB URI. Set MONGODB_URI environment variable for production.');
-    }
-    
-    const conn = await mongoose.connect(mongoURI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
-      serverSelectionTimeoutMS: 5000, // Timeout after 5s instead of 30s
-      socketTimeoutMS: 45000, // Close sockets after 45s of inactivity
-      connectTimeoutMS: 10000, // Give up initial connection after 10s
-    });
+  if (isConnected) return;
 
-    console.log(`MongoDB Connected: ${conn.connection.host}`);
-  } catch (error) {
-    console.error('Error connecting to MongoDB:', error.message);
-    console.error('MongoDB URI:', process.env.MONGODB_URI ? 'Set (hidden)' : 'Not set');
-    // Don't exit in serverless environment, let Vercel handle it
-    if (process.env.NODE_ENV === 'production' && process.env.VERCEL) {
-      throw error;
-    }
-    process.exit(1);
+  if (!connectionPromise) {
+    const mongoURI = process.env.MONGODB_URI;
+    if (!mongoURI) throw new Error("MONGODB_URI not set in environment");
+
+    connectionPromise = mongoose
+      .connect(mongoURI, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+        serverSelectionTimeoutMS: 5000,
+        socketTimeoutMS: 45000,
+        connectTimeoutMS: 10000,
+      })
+      .then(() => {
+        isConnected = true;
+        console.log("MongoDB Connected");
+      })
+      .catch((err) => {
+        console.error("MongoDB connection error:", err.message);
+        connectionPromise = null; // Allow retry next time
+        throw err;
+      });
   }
+
+  return connectionPromise;
 };
 
 module.exports = connectDB;
