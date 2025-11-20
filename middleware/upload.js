@@ -1,16 +1,33 @@
 const multer = require('multer');
 const cloudinary = require('cloudinary').v2;
 const streamifier = require('streamifier');
+const fs = require('fs');
+const path = require('path');
 
-// Configure Cloudinary (only if environment variables are set)
-if (process.env.CLOUDINARY_CLOUD_NAME && process.env.CLOUDINARY_API_KEY && process.env.CLOUDINARY_API_SECRET) {
+const isCloudinaryConfigured = Boolean(
+  process.env.CLOUDINARY_CLOUD_NAME &&
+  process.env.CLOUDINARY_API_KEY &&
+  process.env.CLOUDINARY_API_SECRET
+);
+
+// On Vercel, Cloudinary is REQUIRED (no local storage available)
+if (process.env.VERCEL && !isCloudinaryConfigured) {
+  console.error('❌ ERROR: Cloudinary is REQUIRED on Vercel. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
+}
+
+if (isCloudinaryConfigured) {
   cloudinary.config({
     cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
     api_key: process.env.CLOUDINARY_API_KEY,
     api_secret: process.env.CLOUDINARY_API_SECRET
   });
+  console.log('✅ Cloudinary configured successfully');
 } else {
-  console.warn('⚠️  Cloudinary credentials not found. File uploads will not work. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.');
+  if (process.env.VERCEL) {
+    console.error('❌ Cloudinary is not configured but required on Vercel!');
+  } else {
+    console.warn('⚠️  Cloudinary credentials not found. Falling back to local storage in /uploads.');
+  }
 }
 
 // File filter
@@ -39,11 +56,6 @@ const fileFilter = (req, file, cb) => {
 // Helper function to upload buffer to Cloudinary
 const uploadToCloudinary = (buffer, folder, publicId) => {
   return new Promise((resolve, reject) => {
-    // Check if Cloudinary is configured
-    if (!process.env.CLOUDINARY_CLOUD_NAME || !process.env.CLOUDINARY_API_KEY || !process.env.CLOUDINARY_API_SECRET) {
-      return reject(new Error('Cloudinary is not configured. Please set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.'));
-    }
-
     const uploadStream = cloudinary.uploader.upload_stream(
       {
         folder: folder,
@@ -74,6 +86,17 @@ const upload = multer({
   fileFilter: fileFilter
 });
 
+const saveBufferLocally = async (buffer, folder, originalName = '') => {
+  const uploadsDir = path.join(process.cwd(), 'uploads', folder);
+  await fs.promises.mkdir(uploadsDir, { recursive: true });
+  const ext = path.extname(originalName) || '';
+  const filename = `${Date.now()}-${Math.round(Math.random() * 1E9)}${ext}`;
+  const filePath = path.join(uploadsDir, filename);
+  await fs.promises.writeFile(filePath, buffer);
+  const publicPath = `/uploads/${folder}/${filename}`.replace(/\\/g, '/');
+  return { filePath, publicPath };
+};
+
 // Middleware to upload file to Cloudinary after multer processes it
 const uploadToCloudinaryMiddleware = (folder) => {
   return async (req, res, next) => {
@@ -82,19 +105,34 @@ const uploadToCloudinaryMiddleware = (folder) => {
     }
 
     try {
-      const publicId = `${req.file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-      const result = await uploadToCloudinary(req.file.buffer, folder, publicId);
-      
-      // Attach Cloudinary URL to req.file
-      req.file.cloudinaryUrl = result.secure_url;
-      req.file.cloudinaryPublicId = result.public_id;
-      req.file.cloudinaryPath = result.secure_url; // For backward compatibility
-      
+      // On Vercel, Cloudinary is REQUIRED
+      if (process.env.VERCEL && !isCloudinaryConfigured) {
+        return res.status(500).json({
+          success: false,
+          message: 'Cloudinary is required on Vercel. Please configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.'
+        });
+      }
+
+      if (isCloudinaryConfigured) {
+        const publicId = `${req.file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+        const result = await uploadToCloudinary(req.file.buffer, folder, publicId);
+        
+        req.file.cloudinaryUrl = result.secure_url;
+        req.file.cloudinaryPublicId = result.public_id;
+        req.file.cloudinaryPath = result.secure_url; // For backward compatibility
+      } else {
+        // Only allow local storage in non-Vercel environments
+        const saved = await saveBufferLocally(req.file.buffer, folder, req.file.originalname);
+        req.file.cloudinaryUrl = saved.publicPath;
+        req.file.cloudinaryPath = saved.publicPath;
+        req.file.localPath = saved.publicPath;
+      }
+
       next();
     } catch (error) {
       return res.status(500).json({
         success: false,
-        message: 'Error uploading file to Cloudinary: ' + error.message
+        message: 'Error uploading file: ' + error.message
       });
     }
   };
@@ -118,12 +156,28 @@ exports.uploadMultiple = (fieldName, maxCount = 5, folder = 'uploads') => {
       }
 
       try {
+        // On Vercel, Cloudinary is REQUIRED
+        if (process.env.VERCEL && !isCloudinaryConfigured) {
+          return res.status(500).json({
+            success: false,
+            message: 'Cloudinary is required on Vercel. Please configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.'
+          });
+        }
+
         const uploadPromises = req.files.map(async (file) => {
-          const publicId = `${file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-          const result = await uploadToCloudinary(file.buffer, folder, publicId);
-          file.cloudinaryUrl = result.secure_url;
-          file.cloudinaryPublicId = result.public_id;
-          file.cloudinaryPath = result.secure_url;
+          if (isCloudinaryConfigured) {
+            const publicId = `${file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+            const result = await uploadToCloudinary(file.buffer, folder, publicId);
+            file.cloudinaryUrl = result.secure_url;
+            file.cloudinaryPublicId = result.public_id;
+            file.cloudinaryPath = result.secure_url;
+          } else {
+            // Only allow local storage in non-Vercel environments
+            const saved = await saveBufferLocally(file.buffer, folder, file.originalname);
+            file.cloudinaryUrl = saved.publicPath;
+            file.cloudinaryPath = saved.publicPath;
+            file.localPath = saved.publicPath;
+          }
           return file;
         });
 
@@ -132,7 +186,7 @@ exports.uploadMultiple = (fieldName, maxCount = 5, folder = 'uploads') => {
       } catch (error) {
         return res.status(500).json({
           success: false,
-          message: 'Error uploading files to Cloudinary: ' + error.message
+          message: 'Error uploading files: ' + error.message
         });
       }
     }
@@ -149,20 +203,39 @@ exports.uploadFields = (fields, folder = 'uploads') => {
       }
 
       try {
+        // On Vercel, Cloudinary is REQUIRED
+        if (process.env.VERCEL && !isCloudinaryConfigured) {
+          return res.status(500).json({
+            success: false,
+            message: 'Cloudinary is required on Vercel. Please configure CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET environment variables.'
+          });
+        }
+
         const uploadPromises = [];
         
         for (const field of fields) {
           const files = req.files[field.name];
           if (files && files.length > 0) {
             for (const file of files) {
-              const publicId = `${file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}`;
-              uploadPromises.push(
-                uploadToCloudinary(file.buffer, folder, publicId).then(result => {
-                  file.cloudinaryUrl = result.secure_url;
-                  file.cloudinaryPublicId = result.public_id;
-                  file.cloudinaryPath = result.secure_url;
-                })
-              );
+              if (isCloudinaryConfigured) {
+                const publicId = `${file.fieldname}-${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+                uploadPromises.push(
+                  uploadToCloudinary(file.buffer, folder, publicId).then(result => {
+                    file.cloudinaryUrl = result.secure_url;
+                    file.cloudinaryPublicId = result.public_id;
+                    file.cloudinaryPath = result.secure_url;
+                  })
+                );
+              } else {
+                // Only allow local storage in non-Vercel environments
+                uploadPromises.push(
+                  saveBufferLocally(file.buffer, folder, file.originalname).then(saved => {
+                    file.cloudinaryUrl = saved.publicPath;
+                    file.cloudinaryPath = saved.publicPath;
+                    file.localPath = saved.publicPath;
+                  })
+                );
+              }
             }
           }
         }
@@ -172,7 +245,7 @@ exports.uploadFields = (fields, folder = 'uploads') => {
       } catch (error) {
         return res.status(500).json({
           success: false,
-          message: 'Error uploading files to Cloudinary: ' + error.message
+          message: 'Error uploading files: ' + error.message
         });
       }
     }
