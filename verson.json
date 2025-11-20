@@ -1,5 +1,7 @@
 {
   "version": 2,
+  "buildCommand": "echo 'Backend-only deployment - skipping frontend build'",
+  "outputDirectory": ".",
   "functions": {
     "index.cjs": {
       "runtime": "nodejs20.x",
@@ -10,10 +12,6 @@
     {
       "src": "/api/(.*)",
       "dest": "/index.cjs"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/index.html"
     }
   ]
 }
