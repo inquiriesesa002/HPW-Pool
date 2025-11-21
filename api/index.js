@@ -11,7 +11,8 @@ const app = express();
 // --- MIDDLEWARE ---
 const allowedOrigins = [
   'https://atsjourney.com',
-  'https://hpw-pool-mu.vercel.app',
+  'https://hpw-pool.vercel.app',
+  'https://hpw-pool.vercel.app/api',
   'http://localhost:5173'
 ];
 
