@@ -11,6 +11,7 @@ const app = express();
 
 // --- MIDDLEWARE ---
 // CORS Configuration - Allow all origins
+// CORS middleware automatically handles OPTIONS preflight requests
 app.use(cors({
   origin: '*', // Allow all origins
   credentials: true,
@@ -18,9 +19,6 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'email', 'password', 'x-access-token'],
   exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
-
-// Handle OPTIONS preflight requests
-app.options('*', cors());
 
 
 
@@ -63,6 +61,13 @@ app.use((req, res, next) => {
   let targetPath = req.path;
   let targetUrl = req.url;
   
+  // Don't modify if path is already /api or /
+  if (targetPath === '/api' || targetPath === '/') {
+    // Log for debugging
+    console.log(`[${req.method}] Path: ${req.path}, URL: ${req.url}, OriginalUrl: ${req.originalUrl}`);
+    return next();
+  }
+  
   // Priority: originalUrl > url > path > headers
   if (req.originalUrl && req.originalUrl.startsWith('/api')) {
     targetPath = req.originalUrl.split('?')[0];
@@ -74,7 +79,7 @@ app.use((req, res, next) => {
     targetPath = req.headers['x-vercel-path'].split('?')[0];
     targetUrl = req.headers['x-vercel-path'];
   } else if (!targetPath.startsWith('/api') && targetPath !== '/' && targetPath !== '') {
-    // Add /api prefix if missing
+    // Add /api prefix if missing (but not for /api itself)
     targetPath = '/api' + targetPath;
     targetUrl = '/api' + (req.url.includes('?') ? req.url : targetPath + (req.url.includes('?') ? '?' + req.url.split('?')[1] : ''));
   }
