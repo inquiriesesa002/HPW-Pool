@@ -1,5 +1,4 @@
 // api/index.js
-const serverless = require('serverless-http');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -9,18 +8,12 @@ require('dotenv').config();
 
 const app = express();
 
-
-// Allow all origins (ya specific origin)
-app.use(cors({
-    origin: 'https://atsjourney.com', // ya '*' for all
-    methods: ['GET', 'POST', 'PUT', 'DELETE'],
-    credentials: true
-}));
-
-app.use(express.json());
-
 // --- MIDDLEWARE ---
-app.use(cors());
+app.use(cors({
+  origin: '*', // Allow all origins for API
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+  credentials: true
+}));
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
@@ -200,17 +193,18 @@ if (!process.env.VERCEL) {
 }
 
 
-// ✅ Vercel serverless export
-module.exports.handler = serverless(app);
-
-// --- Optional: local dev ---
+// --- Local Development ---
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, async () => {
-    console.log(`Server running on port ${PORT}`);
-    try { await connectDB(); } catch(e) { console.error(e); }
+    console.log(`🚀 Server running on port ${PORT}`);
+    try { 
+      await connectDB(); 
+    } catch(e) { 
+      console.error('DB connection failed:', e); 
+    }
   });
 }
 
-// Export for Vercel (Vercel handles serverless automatically)
+// --- Export for Vercel (Vercel handles serverless automatically) ---
 module.exports = app;
