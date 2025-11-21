@@ -1,0 +1,25 @@
+# Ignore routes folder at root (not in api/)
+routes/
+server-routes-backup/
+
+# Ignore scripts and uploads
+api/server/scripts/
+api/scripts/
+api/uploads/
+api/server/uploads/
+api/dist/
+api/*.bak
+api/server.js
+api/server.js.bak
+api/verson.json
+
+# CRITICAL: Ignore all .js files in api/server/ to prevent Vercel from treating them as functions
+# These files will still be included via includeFiles in vercel.json
+api/server/routes/*.js
+api/server/scripts/*.js
+api/server/controllers/*.js
+
+# Only allow api/index.js as serverless function
+# Ignore all other .js files in api/ root directory
+api/*.js
+!api/index.js
