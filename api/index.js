@@ -9,44 +9,35 @@ require('dotenv').config();
 const app = express();
 ///////////////////////
 
-
-app.use(
-  cors({
-    origin: (origin, callback) => {
-      const allowed = [
-         'https://atsjourney.com',
-  'https://hpw-pool.vercel.app',
-  'http://localhost:5173'
-      ];
-
-      if (!origin || allowed.some(o => origin.startsWith(o))) {
-        callback(null, true);
-      } else {
-        console.error("❌ CORS blocked origin:", origin);
-        callback(new Error("Not allowed by CORS"));
-      }
-    },
-    credentials: true,
-    methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-    allowedHeaders: [
-      "Content-Type",
-      "Authorization",
-      "email",
-      "password",
-      "x-access-token",
-      "Accept",
-      "Origin",
-      "X-Requested-With",
-    ],
-  })
-);
-
-app.use(express.json({ limit: '5mb' }));
-app.use(express.urlencoded({ extended: true }));
-
 ////////////////////
 // --- MIDDLEWARE ---
+app.use((req, res, next) => {
+  const allowedOrigins = [
+    'https://atsjourney.com',
+    'https://hpw-pool.vercel.app',
+    'http://localhost:5173'
+  ];
 
+  let origin = req.headers.origin;
+
+  if (!origin || allowedOrigins.includes(origin)) {
+    res.setHeader('Access-Control-Allow-Origin', origin || '*');
+    res.setHeader('Access-Control-Allow-Methods', 'GET,POST,PUT,DELETE,PATCH,OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type,Authorization,email,password,x-access-token,Accept,Origin,X-Requested-With');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+    if (req.method === 'OPTIONS') return res.sendStatus(204); // preflight safe
+    return next();
+  } else {
+    console.warn('❌ CORS blocked origin:', origin);
+    return res.status(403).json({ success: false, message: 'Not allowed by CORS' });
+  }
+});
+
+
+
+app.use(express.json({ limit: '10mb' }));
+app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
 // --- DATABASE CONNECTION ---
 const connectDB = async () => {
