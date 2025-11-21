@@ -2,28 +2,20 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
+const path = require('path');
+const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
 
 // --- MIDDLEWARE ---
-// Allowed origins
-const allowedOrigins = [
-  'https://atsjourney.com',
-  'https://hpw-pool.vercel.app',
-  'http://localhost:5173'
-];
-
+// CORS Configuration - Allow all origins for API
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin) return callback(null, true); // allow server-to-server or Postman
-    if (allowedOrigins.indexOf(origin) === -1) {
-      return callback(new Error('CORS policy does not allow access from this origin'), false);
-    }
-    return callback(null, true);
-  },
+  origin: '*', // Allow all origins
   credentials: true,
-  methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS']
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
 
 app.use(express.json({ limit: '10mb' }));
@@ -34,14 +26,62 @@ const connectDB = async () => {
   if (mongoose.connection.readyState === 1) return; // already connected
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
-      maxPoolSize: 10
+      maxPoolSize: 10,
     });
-    console.log('✅ MongoDB Connected');
+    console.log('✅ MongoDB Connected Successfully');
   } catch (error) {
     console.error('❌ MongoDB Connection Error:', error);
     throw error;
   }
 };
+
+// Middleware to fix Vercel path forwarding issue
+app.use((req, res, next) => {
+  // Vercel serverless functions receive path differently
+  // Check all possible path sources
+  let actualPath = req.path;
+  let actualUrl = req.url;
+  
+  // Vercel might send path without /api prefix in req.path
+  // But originalUrl or url might have it
+  const pathSources = [
+    req.originalUrl,
+    req.url,
+    req.path,
+    req.headers['x-vercel-path'] || '',
+    req.headers['x-invoke-path'] || ''
+  ];
+  
+  // Find the path that starts with /api
+  for (const source of pathSources) {
+    if (source && typeof source === 'string' && source.startsWith('/api')) {
+      const cleanPath = source.split('?')[0]; // Remove query params
+      actualPath = cleanPath;
+      actualUrl = source;
+      break;
+    }
+  }
+  
+  // If still no /api prefix and not root, add it
+  if (!actualPath.startsWith('/api') && actualPath !== '/' && actualPath !== '') {
+    actualPath = '/api' + actualPath;
+    actualUrl = '/api' + actualUrl;
+  }
+  
+  // Update req object
+  req.path = actualPath;
+  req.url = actualUrl;
+  if (!req.originalUrl || !req.originalUrl.startsWith('/api')) {
+    req.originalUrl = actualUrl;
+  }
+  
+  // Log for debugging
+  console.log(`[${req.method}] OriginalUrl: ${req.originalUrl}, Path: ${req.path}, URL: ${req.url}, Headers:`, {
+    'x-vercel-path': req.headers['x-vercel-path'],
+    'x-invoke-path': req.headers['x-invoke-path']
+  });
+  next();
+});
 
 // Middleware to ensure DB connection per request (serverless safe)
 app.use(async (req, res, next) => {
@@ -49,7 +89,7 @@ app.use(async (req, res, next) => {
     try {
       await connectDB();
     } catch (err) {
-      console.error('DB connection failed:', err);
+      console.error('DB connection failed in middleware:', err);
       return res.status(500).json({ success: false, message: 'Database connection error' });
     }
   }
@@ -72,19 +112,28 @@ const { uploadCV: cvUploadMiddleware, uploadProfileImage, uploadLogo, uploadJobI
 const Professional = require('./server/models/Professional.cjs');
 
 // ============================================
-// --- ROUTES ---
+// --- ROUTES --- (same as before)
 // ============================================
-
 // Auth
 app.post('/api/auth/register', register);
 app.post('/api/auth/login', login);
 app.get('/api/auth/me', protect, getMe);
 
-// Locations
-app.get('/api/locations/continents', getContinents);
+// Locations (handle both with and without /api prefix for Vercel)
+app.get('/api/locations/continents', (req, res, next) => {
+  console.log('Continents route hit!', req.path, req.url);
+  getContinents(req, res, next);
+});
+app.get('/locations/continents', (req, res, next) => {
+  console.log('Continents route hit (no prefix)!', req.path, req.url);
+  getContinents(req, res, next);
+});
 app.get('/api/locations/countries', getCountries);
+app.get('/locations/countries', getCountries);
 app.get('/api/locations/provinces', getProvinces);
+app.get('/locations/provinces', getProvinces);
 app.get('/api/locations/cities', getCities);
+app.get('/locations/cities', getCities);
 
 // Professions
 app.get('/api/professions', getProfessions);
@@ -104,8 +153,10 @@ app.get('/api/professionals/:id/cv', protect, async (req, res) => {
   try {
     const professional = await Professional.findById(req.params.id);
     if (!professional || !professional.cv) return res.status(404).json({ success: false, message: 'CV not found' });
-    const filePath = path.join(__dirname, '..', professional.cv);
-    res.download(filePath, professional.cvFileName || 'cv.pdf');
+    const cvPath = path.join(__dirname, '..', professional.cv);
+    if (!fs.existsSync(cvPath)) return res.status(404).json({ success: false, message: 'CV file not found' });
+    const fileName = professional.cvFileName || 'cv.pdf';
+    res.download(cvPath, fileName);
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -134,20 +185,21 @@ app.put('/api/trainees/:id', protect, updateTrainee);
 // Upload
 app.post('/api/upload/cv', protect, uploadCV, (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-  res.json({ success: true, filePath: req.file.cloudinaryUrl || `/uploads/cvs/${req.file.filename}`, fileName: req.file.originalname });
+  const filePath = req.file.cloudinaryUrl || `/uploads/cvs/${req.file.filename}`;
+  res.json({ success: true, message: 'CV uploaded', filePath, fileName: req.file.originalname });
 });
-
 app.post('/api/upload/profile-image', protect, uploadProfileImage, (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-  res.json({ success: true, filePath: req.file.cloudinaryUrl || `/uploads/profile-images/${req.file.filename}`, fileName: req.file.originalname });
+  const filePath = req.file.cloudinaryUrl || `/uploads/profile-images/${req.file.filename}`;
+  res.json({ success: true, message: 'Profile image uploaded', filePath, fileName: req.file.originalname });
 });
-
 app.post('/api/upload/logo', protect, uploadLogo, (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
-  res.json({ success: true, filePath: req.file.cloudinaryUrl || `/uploads/company-logos/${req.file.filename}`, fileName: req.file.originalname });
+  const filePath = req.file.cloudinaryUrl || `/uploads/company-logos/${req.file.filename}`;
+  res.json({ success: true, message: 'Logo uploaded', filePath, fileName: req.file.originalname });
 });
 
-// Admin routes (protected)
+// Admin (all admin-protected)
 app.use('/api/admin', protect, authorize('admin'));
 app.get('/api/admin/stats', getAdminStats);
 app.get('/api/admin/users', getUsers);
@@ -185,15 +237,33 @@ app.get('/api', (req, res) => {
   res.json({ success: true, message: 'HPW Pool API' });
 });
 
-// 404 handler
-app.use((req, res) => {
-  res.status(404).json({ success: false, message: 'Route not found', path: req.path });
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'HPW Pool API - Serverless Function', endpoints: { api: '/api', health: '/api/health' } });
 });
 
-// Error handler
+// Error & 404 handling
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ success: false, message: err.message });
 });
 
+app.use((req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.path}`);
+  res.status(404).json({ success: false, message: 'Route not found', path: req.path });
+});
+
+// --- Local Development ---
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, async () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    try { 
+      await connectDB(); 
+    } catch(e) { 
+      console.error('DB connection failed:', e); 
+    }
+  });
+}
+
+// --- Export for Vercel (Vercel handles serverless automatically) ---
 module.exports = app;
