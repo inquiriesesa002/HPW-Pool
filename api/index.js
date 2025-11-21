@@ -7,49 +7,46 @@ const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
+///////////////////////
 
-// --------------------
-// MIDDLEWARE
-// --------------------
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://atsjourney.com",
-  "https://hpw-pool.vercel.app",
-];
-
+// --- MIDDLEWARE ---
+// CORS Configuration - Allow all origins
 app.use(cors({
-  origin: (origin, callback) => {
-    if (!origin || allowedOrigins.includes(origin)) {
-      callback(null, true);
-    } else {
-      console.error("❌ CORS blocked origin:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
-  },
+  origin: '*', // Allow all origins
   credentials: true,
-  methods: ["GET","POST","PUT","PATCH","DELETE","OPTIONS"],
-  allowedHeaders: [
-    "Content-Type",
-    "Authorization",
-    "email",
-    "password",
-    "x-access-token",
-    "Accept",
-    "Origin",
-    "X-Requested-With",
-  ],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'email', 'password', 'x-access-token'],
+  exposedHeaders: ['Content-Range', 'X-Content-Range']
 }));
+
+// Handle OPTIONS preflight requests
+app.options('*', cors());
+
+
+
+
 
 app.use(express.json({ limit: '5mb' }));
 app.use(express.urlencoded({ extended: true }));
+///////////
+// Attach io to req
 
-// --------------------
-// DATABASE CONNECTION
-// --------------------
+/////////////
+// Root should redirect to the deployed frontend if available
+const FRONTEND_URL = process.env.FRONTEND_URL || "https://atsjourney.com";
+app.get("/", (req, res) => {
+  res.redirect(FRONTEND_URL);
+});
+
+
+
+// --- DATABASE CONNECTION ---
 const connectDB = async () => {
-  if (mongoose.connection.readyState === 1) return;
+  if (mongoose.connection.readyState === 1) return; // already connected
   try {
-    await mongoose.connect(process.env.MONGODB_URI, { maxPoolSize: 10 });
+    await mongoose.connect(process.env.MONGODB_URI, {
+      maxPoolSize: 10,
+    });
     console.log('✅ MongoDB Connected Successfully');
   } catch (error) {
     console.error('❌ MongoDB Connection Error:', error);
@@ -57,21 +54,55 @@ const connectDB = async () => {
   }
 };
 
-// Middleware to ensure DB connection per request (serverless-safe)
+// Middleware to fix Vercel path forwarding issue
+app.use((req, res, next) => {
+  // Vercel serverless: When /api/jobs is requested, Vercel forwards to /api/index.js
+  // But Express might receive path as /jobs (without /api prefix)
+  
+  // Get the actual path from various sources
+  let targetPath = req.path;
+  let targetUrl = req.url;
+  
+  // Priority: originalUrl > url > path > headers
+  if (req.originalUrl && req.originalUrl.startsWith('/api')) {
+    targetPath = req.originalUrl.split('?')[0];
+    targetUrl = req.originalUrl;
+  } else if (req.url && req.url.startsWith('/api')) {
+    targetPath = req.url.split('?')[0];
+    targetUrl = req.url;
+  } else if (req.headers['x-vercel-path'] && req.headers['x-vercel-path'].startsWith('/api')) {
+    targetPath = req.headers['x-vercel-path'].split('?')[0];
+    targetUrl = req.headers['x-vercel-path'];
+  } else if (!targetPath.startsWith('/api') && targetPath !== '/' && targetPath !== '') {
+    // Add /api prefix if missing
+    targetPath = '/api' + targetPath;
+    targetUrl = '/api' + (req.url.includes('?') ? req.url : targetPath + (req.url.includes('?') ? '?' + req.url.split('?')[1] : ''));
+  }
+  
+  // Update request object
+  req.path = targetPath;
+  req.url = targetUrl;
+  req.originalUrl = targetUrl;
+  
+  // Log for debugging
+  console.log(`[${req.method}] Path: ${req.path}, URL: ${req.url}, OriginalUrl: ${req.originalUrl}`);
+  next();
+});
+
+// Middleware to ensure DB connection per request (serverless safe)
 app.use(async (req, res, next) => {
   if (mongoose.connection.readyState !== 1) {
-    try { await connectDB(); } 
-    catch(err) { 
-      console.error('DB connection failed:', err);
+    try {
+      await connectDB();
+    } catch (err) {
+      console.error('DB connection failed in middleware:', err);
       return res.status(500).json({ success: false, message: 'Database connection error' });
     }
   }
   next();
 });
 
-// --------------------
-// CONTROLLERS
-// --------------------
+// --- IMPORT CONTROLLERS ---
 const { register, login, getMe } = require('./server/controllers/authController.cjs');
 const { getContinents, getCountries, getProvinces, getCities } = require('./server/controllers/locationController.cjs');
 const { getProfessions, getProfession, createProfession, updateProfession, deleteProfession } = require('./server/controllers/professionController.cjs');
@@ -81,25 +112,34 @@ const { getJobs, getJob, createJob, updateJob, applyToJob, downloadCV } = requir
 const { getTrainees, getTrainee, createTrainee, updateTrainee } = require('./server/controllers/traineeController.js');
 const { getUsers, deleteUser, verifyProfessional, getAllProfessionals, deleteProfessional, getAllCompanies, verifyCompany, deleteCompany, getAllJobs, deleteJob, getLocations, createContinent, updateContinent, deleteContinent, createCountry, bulkCreateCountries, updateCountry, deleteCountry, getProfessions: getAdminProfessions, seedProfessions, getAdminStats } = require('./server/controllers/adminController.cjs');
 
-// Middleware
+// --- IMPORT MIDDLEWARE ---
 const { protect, authorize } = require('./server/middleware/auth.cjs');
 const { uploadCV: cvUploadMiddleware, uploadProfileImage, uploadLogo, uploadJobImage } = require('./server/middleware/upload.cjs');
 const Professional = require('./server/models/Professional.cjs');
 
-// --------------------
-// ROUTES
-// --------------------
-
+// ============================================
+// --- ROUTES --- (same as before)
+// ============================================
 // Auth
 app.post('/api/auth/register', register);
 app.post('/api/auth/login', login);
 app.get('/api/auth/me', protect, getMe);
 
-// Locations
-app.get('/api/locations/continents', getContinents);
+// Locations (handle both with and without /api prefix for Vercel)
+app.get('/api/locations/continents', (req, res, next) => {
+  console.log('Continents route hit!', req.path, req.url);
+  getContinents(req, res, next);
+});
+app.get('/locations/continents', (req, res, next) => {
+  console.log('Continents route hit (no prefix)!', req.path, req.url);
+  getContinents(req, res, next);
+});
 app.get('/api/locations/countries', getCountries);
+app.get('/locations/countries', getCountries);
 app.get('/api/locations/provinces', getProvinces);
+app.get('/locations/provinces', getProvinces);
 app.get('/api/locations/cities', getCities);
+app.get('/locations/cities', getCities);
 
 // Professions
 app.get('/api/professions', getProfessions);
@@ -148,7 +188,7 @@ app.get('/api/trainees/:id', getTrainee);
 app.post('/api/trainees', protect, createTrainee);
 app.put('/api/trainees/:id', protect, updateTrainee);
 
-// Uploads
+// Upload
 app.post('/api/upload/cv', protect, uploadCV, (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
   const filePath = req.file.cloudinaryUrl || `/uploads/cvs/${req.file.filename}`;
@@ -165,7 +205,7 @@ app.post('/api/upload/logo', protect, uploadLogo, (req, res) => {
   res.json({ success: true, message: 'Logo uploaded', filePath, fileName: req.file.originalname });
 });
 
-// Admin
+// Admin (all admin-protected)
 app.use('/api/admin', protect, authorize('admin'));
 app.get('/api/admin/stats', getAdminStats);
 app.get('/api/admin/users', getUsers);
@@ -189,9 +229,7 @@ app.delete('/api/admin/countries/:id', deleteCountry);
 app.get('/api/admin/professions', getAdminProfessions);
 app.post('/api/admin/seed-professions', seedProfessions);
 
-// --------------------
-// HEALTH CHECK & ROOT
-// --------------------
+// Health check & API root
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -201,14 +239,15 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-const FRONTEND_URL = process.env.FRONTEND_URL || "https://atsjourney.com";
-app.get('/', (req, res) => {
-  res.redirect(FRONTEND_URL);
+app.get('/api', (req, res) => {
+  res.json({ success: true, message: 'HPW Pool API' });
 });
 
-// --------------------
-// ERROR & 404 HANDLING
-// --------------------
+app.get('/', (req, res) => {
+  res.json({ success: true, message: 'HPW Pool API - Serverless Function', endpoints: { api: '/api', health: '/api/health' } });
+});
+
+// Error & 404 handling
 app.use((err, req, res, next) => {
   console.error('Error:', err);
   res.status(500).json({ success: false, message: err.message });
@@ -219,16 +258,18 @@ app.use((req, res) => {
   res.status(404).json({ success: false, message: 'Route not found', path: req.path });
 });
 
-// --------------------
-// LOCAL DEVELOPMENT
-// --------------------
+// --- Local Development ---
 if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
-    try { await connectDB(); } 
-    catch(e) { console.error('DB connection failed:', e); }
+    try { 
+      await connectDB(); 
+    } catch(e) { 
+      console.error('DB connection failed:', e); 
+    }
   });
 }
 
+// --- Export for Vercel (Vercel handles serverless automatically) ---
 module.exports = app;
