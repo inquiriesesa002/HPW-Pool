@@ -2,13 +2,13 @@
   "name": "hpw-pool-api",
   "version": "1.0.0",
   "description": "HPW Pool API",
-  "main": "index.js",
+  "main": "api/index.js",
   "scripts": {
-    "start": "node index.js",
-    "dev": "nodemon index.js"
+    "start": "node api/index.js",
+    "dev": "nodemon api/index.js"
   },
   "engines": {
-    "node": "22.x"
+    "node": "20.x"
   },
   "dependencies": {
     "bcryptjs": "^2.4.3",
