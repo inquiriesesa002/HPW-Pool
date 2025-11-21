@@ -33,29 +33,49 @@ const connectDB = async () => {
 
 // Middleware to fix Vercel path forwarding issue
 app.use((req, res, next) => {
-  // Vercel serverless: request comes as /api/locations/continents
-  // But Express might receive it as /locations/continents (without /api)
-  // Check both req.path and req.url
+  // Vercel serverless functions receive path differently
+  // Check all possible path sources
   let actualPath = req.path;
   let actualUrl = req.url;
   
-  // If path doesn't start with /api and it's not root, check if we need to add /api
-  if (!actualPath.startsWith('/api') && actualPath !== '/') {
-    // Check if originalUrl has /api
-    if (req.originalUrl && req.originalUrl.startsWith('/api')) {
-      actualPath = req.originalUrl.split('?')[0]; // Remove query params
-      actualUrl = req.originalUrl;
-    } else {
-      // Add /api prefix
-      actualPath = '/api' + actualPath;
-      actualUrl = '/api' + actualUrl;
+  // Vercel might send path without /api prefix in req.path
+  // But originalUrl or url might have it
+  const pathSources = [
+    req.originalUrl,
+    req.url,
+    req.path,
+    req.headers['x-vercel-path'] || '',
+    req.headers['x-invoke-path'] || ''
+  ];
+  
+  // Find the path that starts with /api
+  for (const source of pathSources) {
+    if (source && typeof source === 'string' && source.startsWith('/api')) {
+      const cleanPath = source.split('?')[0]; // Remove query params
+      actualPath = cleanPath;
+      actualUrl = source;
+      break;
     }
-    req.path = actualPath;
-    req.url = actualUrl;
+  }
+  
+  // If still no /api prefix and not root, add it
+  if (!actualPath.startsWith('/api') && actualPath !== '/' && actualPath !== '') {
+    actualPath = '/api' + actualPath;
+    actualUrl = '/api' + actualUrl;
+  }
+  
+  // Update req object
+  req.path = actualPath;
+  req.url = actualUrl;
+  if (!req.originalUrl || !req.originalUrl.startsWith('/api')) {
+    req.originalUrl = actualUrl;
   }
   
   // Log for debugging
-  console.log(`[${req.method}] OriginalUrl: ${req.originalUrl}, Path: ${req.path}, URL: ${req.url}`);
+  console.log(`[${req.method}] OriginalUrl: ${req.originalUrl}, Path: ${req.path}, URL: ${req.url}, Headers:`, {
+    'x-vercel-path': req.headers['x-vercel-path'],
+    'x-invoke-path': req.headers['x-invoke-path']
+  });
   next();
 });
 
