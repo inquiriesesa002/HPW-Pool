@@ -5,6 +5,7 @@ const cors = require('cors');
 const path = require('path');
 const fs = require('fs');
 require('dotenv').config();
+const serverless = require('serverless-http');
 
 const app = express();
 
@@ -16,11 +17,8 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // --- DATABASE CONNECTION ---
 const connectDB = async () => {
   if (mongoose.connection.readyState === 1) return; // already connected
-
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
-      useNewUrlParser: true,
-      useUnifiedTopology: true,
       maxPoolSize: 10,
     });
     console.log('✅ MongoDB Connected Successfully');
@@ -59,28 +57,27 @@ const { uploadCV: cvUploadMiddleware, uploadProfileImage, uploadLogo, uploadJobI
 const Professional = require('./server/models/Professional.cjs');
 
 // ============================================
-// --- ROUTES ---
+// --- ROUTES --- (same as before)
 // ============================================
-
-// --- AUTH ---
+// Auth
 app.post('/api/auth/register', register);
 app.post('/api/auth/login', login);
 app.get('/api/auth/me', protect, getMe);
 
-// --- LOCATION ---
+// Locations
 app.get('/api/locations/continents', getContinents);
 app.get('/api/locations/countries', getCountries);
 app.get('/api/locations/provinces', getProvinces);
 app.get('/api/locations/cities', getCities);
 
-// --- PROFESSION ---
+// Professions
 app.get('/api/professions', getProfessions);
 app.get('/api/professions/:id', getProfession);
 app.post('/api/professions', protect, authorize('admin'), createProfession);
 app.put('/api/professions/:id', protect, authorize('admin'), updateProfession);
 app.delete('/api/professions/:id', protect, authorize('admin'), deleteProfession);
 
-// --- PROFESSIONAL ---
+// Professionals
 app.get('/api/professionals/stats', getStats);
 app.get('/api/professionals', getProfessionals);
 app.get('/api/professionals/:id', getProfessional);
@@ -100,13 +97,13 @@ app.get('/api/professionals/:id/cv', protect, async (req, res) => {
   }
 });
 
-// --- COMPANY ---
+// Companies
 app.get('/api/companies', getCompanies);
 app.get('/api/companies/:id', getCompany);
 app.post('/api/companies', protect, createCompany);
 app.put('/api/companies/:id', protect, updateCompany);
 
-// --- JOB ---
+// Jobs
 app.get('/api/jobs', getJobs);
 app.get('/api/jobs/:id', getJob);
 app.post('/api/jobs', protect, uploadJobImage, createJob);
@@ -114,13 +111,13 @@ app.put('/api/jobs/:id', protect, uploadJobImage, updateJob);
 app.post('/api/jobs/apply', protect, applyToJob);
 app.get('/api/jobs/cv/download', protect, downloadCV);
 
-// --- TRAINEE ---
+// Trainees
 app.get('/api/trainees', getTrainees);
 app.get('/api/trainees/:id', getTrainee);
 app.post('/api/trainees', protect, createTrainee);
 app.put('/api/trainees/:id', protect, updateTrainee);
 
-// --- UPLOAD ---
+// Upload
 app.post('/api/upload/cv', protect, uploadCV, (req, res) => {
   if (!req.file) return res.status(400).json({ success: false, message: 'No file uploaded' });
   const filePath = req.file.cloudinaryUrl || `/uploads/cvs/${req.file.filename}`;
@@ -137,30 +134,31 @@ app.post('/api/upload/logo', protect, uploadLogo, (req, res) => {
   res.json({ success: true, message: 'Logo uploaded', filePath, fileName: req.file.originalname });
 });
 
-// --- ADMIN (all admin-protected) ---
-app.get('/api/admin/stats', protect, authorize('admin'), getAdminStats);
-app.get('/api/admin/users', protect, authorize('admin'), getUsers);
-app.delete('/api/admin/users/:id', protect, authorize('admin'), deleteUser);
-app.get('/api/admin/professionals', protect, authorize('admin'), getAllProfessionals);
-app.put('/api/admin/professionals/:id/verify', protect, authorize('admin'), verifyProfessional);
-app.delete('/api/admin/professionals/:id', protect, authorize('admin'), deleteProfessional);
-app.get('/api/admin/companies', protect, authorize('admin'), getAllCompanies);
-app.put('/api/admin/companies/:id/verify', protect, authorize('admin'), verifyCompany);
-app.delete('/api/admin/companies/:id', protect, authorize('admin'), deleteCompany);
-app.get('/api/admin/jobs', protect, authorize('admin'), getAllJobs);
-app.delete('/api/admin/jobs/:id', protect, authorize('admin'), deleteJob);
-app.get('/api/admin/locations', protect, authorize('admin'), getLocations);
-app.post('/api/admin/continents', protect, authorize('admin'), createContinent);
-app.put('/api/admin/continents/:id', protect, authorize('admin'), updateContinent);
-app.delete('/api/admin/continents/:id', protect, authorize('admin'), deleteContinent);
-app.post('/api/admin/countries', protect, authorize('admin'), createCountry);
-app.post('/api/admin/countries/bulk', protect, authorize('admin'), bulkCreateCountries);
-app.put('/api/admin/countries/:id', protect, authorize('admin'), updateCountry);
-app.delete('/api/admin/countries/:id', protect, authorize('admin'), deleteCountry);
-app.get('/api/admin/professions', protect, authorize('admin'), getAdminProfessions);
-app.post('/api/admin/seed-professions', protect, authorize('admin'), seedProfessions);
+// Admin (all admin-protected)
+app.use('/api/admin', protect, authorize('admin'));
+app.get('/api/admin/stats', getAdminStats);
+app.get('/api/admin/users', getUsers);
+app.delete('/api/admin/users/:id', deleteUser);
+app.get('/api/admin/professionals', getAllProfessionals);
+app.put('/api/admin/professionals/:id/verify', verifyProfessional);
+app.delete('/api/admin/professionals/:id', deleteProfessional);
+app.get('/api/admin/companies', getAllCompanies);
+app.put('/api/admin/companies/:id/verify', verifyCompany);
+app.delete('/api/admin/companies/:id', deleteCompany);
+app.get('/api/admin/jobs', getAllJobs);
+app.delete('/api/admin/jobs/:id', deleteJob);
+app.get('/api/admin/locations', getLocations);
+app.post('/api/admin/continents', createContinent);
+app.put('/api/admin/continents/:id', updateContinent);
+app.delete('/api/admin/continents/:id', deleteContinent);
+app.post('/api/admin/countries', createCountry);
+app.post('/api/admin/countries/bulk', bulkCreateCountries);
+app.put('/api/admin/countries/:id', updateCountry);
+app.delete('/api/admin/countries/:id', deleteCountry);
+app.get('/api/admin/professions', getAdminProfessions);
+app.post('/api/admin/seed-professions', seedProfessions);
 
-// --- HEALTH CHECK ---
+// Health check & API root
 app.get('/api/health', (req, res) => {
   res.json({
     status: 'OK',
@@ -170,56 +168,26 @@ app.get('/api/health', (req, res) => {
   });
 });
 
-// --- API ROOT ---
 app.get('/api', (req, res) => {
-  res.json({
-    success: true,
-    message: 'HPW Pool API',
-    endpoints: {
-      auth: '/api/auth',
-      locations: '/api/locations',
-      professions: '/api/professions',
-      professionals: '/api/professionals',
-      companies: '/api/companies',
-      jobs: '/api/jobs',
-      trainees: '/api/trainees',
-      upload: '/api/upload',
-      admin: '/api/admin',
-      health: '/api/health'
-    }
-  });
+  res.json({ success: true, message: 'HPW Pool API' });
 });
 
-// --- SERVERLESS ROOT ---
 app.get('/', (req, res) => {
-  res.json({
-    success: true,
-    message: 'HPW Pool API - Serverless Function',
-    endpoints: {
-      api: '/api',
-      health: '/api/health'
-    }
-  });
+  res.json({ success: true, message: 'HPW Pool API - Serverless Function', endpoints: { api: '/api', health: '/api/health' } });
 });
 
-// --- ERROR HANDLING ---
-app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ success: false, message: 'Something went wrong!', error: err.message });
-});
-
-// --- 404 HANDLER ---
+// Error & 404 handling
+app.use((err, req, res, next) => res.status(500).json({ success: false, message: err.message }));
 app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found', path: req.path }));
 
-// --- LOCAL DEVELOPMENT ---
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
+// Local development
+if (!process.env.VERCEL) {
   const PORT = process.env.PORT || 5000;
   app.listen(PORT, async () => {
-    console.log(`🚀 HPW Pool Server running on port ${PORT}`);
-    try { await connectDB(); } catch (error) { console.error('DB connection failed:', error); }
+    console.log(`🚀 Server running on port ${PORT}`);
+    try { await connectDB(); } catch (e) { console.error(e); }
   });
 }
 
-// --- EXPORT FOR VERCEL ---
-// Vercel automatically handles serverless functions
-module.exports = app;
+// Export serverless function
+module.exports = serverless(app);
