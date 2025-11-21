@@ -12,24 +12,21 @@ const app = express();
 // --- MIDDLEWARE ---
 // CORS Configuration - Allow all origins
 // CORS middleware automatically handles OPTIONS preflight requests
-// --- CORS Middleware ---
+// Remove any app.options('*', ...) lines
+
+// Correct CORS setup (already added)
 const allowedOrigins = [
-  "http://localhost:5173",      // local dev
-  "https://atsjourney.com"      // deployed frontend
+  "http://localhost:5173",
+  "https://atsjourney.com"
 ];
 
 app.use(cors({
   origin: function(origin, callback) {
-    // allow requests with no origin (like Postman or server-to-server)
     if (!origin) return callback(null, true);
-    if (allowedOrigins.indexOf(origin) !== -1) {
-      callback(null, true);
-    } else {
-      console.error("❌ CORS blocked origin:", origin);
-      callback(new Error("Not allowed by CORS"));
-    }
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error("Not allowed by CORS"));
   },
-  credentials: true,  // allow cookies
+  credentials: true,
   methods: ["GET","POST","PUT","DELETE","PATCH","OPTIONS"],
   allowedHeaders: [
     "Content-Type",
@@ -43,6 +40,12 @@ app.use(cors({
   ],
   exposedHeaders: ["Content-Range", "X-Content-Range"]
 }));
+
+// Catch-all 404 handler (already in your code)
+app.use((req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.path}`);
+  res.status(404).json({ success: false, message: 'Route not found', path: req.path });
+});
 
 
 
