@@ -3,6 +3,7 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 require('dotenv').config();
+const serverless = require('serverless-http');
 
 const app = express();
 
@@ -14,7 +15,6 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 // --- DATABASE CONNECTION ---
 const connectDB = async () => {
   if (mongoose.connection.readyState === 1) return; // already connected
-
   try {
     await mongoose.connect(process.env.MONGODB_URI, {
       useNewUrlParser: true,
@@ -133,18 +133,5 @@ app.use((req, res) => {
   });
 });
 
-// --- START SERVER FOR LOCAL DEVELOPMENT ---
-if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, async () => {
-    console.log(`🚀 HPW Pool Server running on port ${PORT}`);
-    try {
-      await connectDB();
-    } catch (error) {
-      console.error('Failed to connect to database on startup:', error);
-    }
-  });
-}
-
-// --- EXPORT APP FOR VERCEL ---
-module.exports = app;
+// --- EXPORT FOR VERCEL ---
+module.exports = serverless(app);
