@@ -203,6 +203,11 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// API root
+app.get('/api', (req, res) => {
+  res.json({ success: true, message: 'HPW Pool API' });
+});
+
 // Catch-all 404 (no '*' route)
 app.use((req, res) => {
   console.log(`404 - Route not found: ${req.method} ${req.path}`);
