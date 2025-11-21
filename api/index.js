@@ -12,13 +12,38 @@ const app = express();
 // --- MIDDLEWARE ---
 // CORS Configuration - Allow all origins
 // CORS middleware automatically handles OPTIONS preflight requests
+// --- CORS Middleware ---
+const allowedOrigins = [
+  "http://localhost:5173",      // local dev
+  "https://atsjourney.com"      // deployed frontend
+];
+
 app.use(cors({
-  origin: '*', // Allow all origins
-  credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Accept', 'Origin', 'email', 'password', 'x-access-token'],
-  exposedHeaders: ['Content-Range', 'X-Content-Range']
+  origin: function(origin, callback) {
+    // allow requests with no origin (like Postman or server-to-server)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      console.error("❌ CORS blocked origin:", origin);
+      callback(new Error("Not allowed by CORS"));
+    }
+  },
+  credentials: true,  // allow cookies
+  methods: ["GET","POST","PUT","DELETE","PATCH","OPTIONS"],
+  allowedHeaders: [
+    "Content-Type",
+    "Authorization",
+    "X-Requested-With",
+    "Accept",
+    "Origin",
+    "email",
+    "password",
+    "x-access-token"
+  ],
+  exposedHeaders: ["Content-Range", "X-Content-Range"]
 }));
+
 
 
 
