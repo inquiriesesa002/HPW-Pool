@@ -27,6 +27,53 @@ app.use(cors({
 }));
 
 // --------------------
+// Vercel Path Handling Middleware (for production)
+// --------------------
+app.use((req, res, next) => {
+  const originalPath = req.path;
+  const originalUrl = req.url;
+  
+  // Log incoming request for debugging
+  if (process.env.VERCEL || process.env.DEBUG) {
+    console.log(`[Request] ${req.method} ${originalPath} | URL: ${originalUrl} | Headers:`, {
+      'x-vercel-path': req.headers['x-vercel-path'],
+      'x-invoke-path': req.headers['x-invoke-path'],
+      'x-rewrite-url': req.headers['x-rewrite-url']
+    });
+  }
+  
+  // Priority 1: Check Vercel-specific headers for original path
+  const vercelPath = req.headers['x-vercel-path'] || req.headers['x-invoke-path'] || req.headers['x-rewrite-url'];
+  if (vercelPath) {
+    const cleanPath = vercelPath.split('?')[0];
+    req.path = cleanPath;
+    req.url = vercelPath;
+    req.originalUrl = vercelPath;
+    if (process.env.VERCEL || process.env.DEBUG) {
+      console.log(`[Vercel] Using path from header: ${req.method} ${originalPath} -> ${req.path}`);
+    }
+    return next();
+  }
+  
+  // Priority 2: Check if path already has /api prefix
+  if (req.path.startsWith('/api') || req.path === '/') {
+    return next();
+  }
+  
+  // Priority 3: If path doesn't start with /api and it's not root, add /api prefix
+  if (req.path !== '/' && !req.path.startsWith('/api')) {
+    req.path = '/api' + req.path;
+    req.url = '/api' + req.url;
+    req.originalUrl = '/api' + originalUrl;
+    if (process.env.VERCEL || process.env.DEBUG) {
+      console.log(`[Vercel] Added /api prefix: ${req.method} ${originalPath} -> ${req.path}`);
+    }
+  }
+  
+  next();
+});
+
+// --------------------
 // Body parsers
 // --------------------
 app.use(express.json({ limit: '5mb' }));
@@ -61,13 +108,22 @@ app.use(async (req, res, next) => {
 // --------------------
 // Routes
 // --------------------
-const authRoutes = require('./server/routes/auth.js');
-const professionRoutes = require('./server/routes/professions.js');
-const professionalRoutes = require('./server/routes/professionals.js');
-const companyRoutes = require('./server/routes/companies.js');
-const jobRoutes = require('./server/routes/jobs.js');
-const traineeRoutes = require('./server/routes/trainees.js');
-const adminRoutes = require('./server/routes/admin.js');
+let authRoutes, professionRoutes, professionalRoutes, companyRoutes, jobRoutes, traineeRoutes, adminRoutes, locationRoutes;
+
+try {
+  authRoutes = require('./server/routes/auth.js');
+  professionRoutes = require('./server/routes/professions.js');
+  professionalRoutes = require('./server/routes/professionals.js');
+  companyRoutes = require('./server/routes/companies.js');
+  jobRoutes = require('./server/routes/jobs.js');
+  traineeRoutes = require('./server/routes/trainees.js');
+  adminRoutes = require('./server/routes/admin.js');
+  locationRoutes = require('./server/routes/locations.js');
+} catch (error) {
+  console.error('❌ Error loading routes:', error.message);
+  console.error('Stack:', error.stack);
+  throw error;
+}
 
 // Use routes
 app.use('/api/auth', authRoutes);
@@ -117,5 +173,6 @@ if (!process.env.VERCEL) {
 // --------------------
 // Export for Vercel
 // --------------------
-// For Vercel, export the app directly (Vercel handles serverless automatically)
-module.exports = process.env.VERCEL ? app : app;
+// Vercel automatically handles serverless functions
+// Export the Express app directly
+module.exports = app;
