@@ -1,0 +1,13 @@
+# Ignore everything except backend/api.
+# Vercel runs only files inside api/
+
+server/
+node_modules/
+uploads/
+scripts/
+dist/
+*.log
+*.bak
+
+# Do NOT ignore api/index.js (Vercel entry)
+!api/index.js
