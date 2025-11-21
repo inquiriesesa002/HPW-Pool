@@ -1,4 +1,5 @@
 // api/index.js
+const serverless = require('serverless-http');
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -7,6 +8,16 @@ const fs = require('fs');
 require('dotenv').config();
 
 const app = express();
+
+
+// Allow all origins (ya specific origin)
+app.use(cors({
+    origin: 'https://atsjourney.com', // ya '*' for all
+    methods: ['GET', 'POST', 'PUT', 'DELETE'],
+    credentials: true
+}));
+
+app.use(express.json());
 
 // --- MIDDLEWARE ---
 app.use(cors());
@@ -185,6 +196,19 @@ if (!process.env.VERCEL) {
   app.listen(PORT, async () => {
     console.log(`🚀 Server running on port ${PORT}`);
     try { await connectDB(); } catch (e) { console.error(e); }
+  });
+}
+
+
+// ✅ Vercel serverless export
+module.exports.handler = serverless(app);
+
+// --- Optional: local dev ---
+if (!process.env.VERCEL) {
+  const PORT = process.env.PORT || 5000;
+  app.listen(PORT, async () => {
+    console.log(`Server running on port ${PORT}`);
+    try { await connectDB(); } catch(e) { console.error(e); }
   });
 }
 
