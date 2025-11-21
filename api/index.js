@@ -31,11 +31,22 @@ const connectDB = async () => {
   }
 };
 
+// Middleware to fix Vercel path forwarding issue
+app.use((req, res, next) => {
+  // Vercel serverless functions sometimes strip /api prefix
+  // If path doesn't start with /api, add it back
+  if (!req.path.startsWith('/api') && req.path !== '/') {
+    req.url = '/api' + req.path + (req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
+    req.path = '/api' + req.path;
+  }
+  
+  // Log for debugging
+  console.log(`[${req.method}] URL: ${req.url}, Path: ${req.path}, OriginalUrl: ${req.originalUrl}`);
+  next();
+});
+
 // Middleware to ensure DB connection per request (serverless safe)
 app.use(async (req, res, next) => {
-  // Log request for debugging
-  console.log(`[${req.method}] ${req.url} - Path: ${req.path}`);
-  
   if (mongoose.connection.readyState !== 1) {
     try {
       await connectDB();
@@ -187,18 +198,15 @@ app.get('/', (req, res) => {
 });
 
 // Error & 404 handling
-app.use((err, req, res, next) => res.status(500).json({ success: false, message: err.message }));
-app.use((req, res) => res.status(404).json({ success: false, message: 'Route not found', path: req.path }));
+app.use((err, req, res, next) => {
+  console.error('Error:', err);
+  res.status(500).json({ success: false, message: err.message });
+});
 
-// Local development
-if (!process.env.VERCEL) {
-  const PORT = process.env.PORT || 5000;
-  app.listen(PORT, async () => {
-    console.log(`🚀 Server running on port ${PORT}`);
-    try { await connectDB(); } catch (e) { console.error(e); }
-  });
-}
-
+app.use((req, res) => {
+  console.log(`404 - Route not found: ${req.method} ${req.path}`);
+  res.status(404).json({ success: false, message: 'Route not found', path: req.path });
+});
 
 // --- Local Development ---
 if (!process.env.VERCEL) {
