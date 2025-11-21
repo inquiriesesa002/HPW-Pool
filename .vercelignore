@@ -1,4 +1,4 @@
-# Ignore routes folder at root (not in api/)
+# Ignore root-level routes backup
 routes/
 server-routes-backup/
 
@@ -13,8 +13,9 @@ api/server.js
 api/server.js.bak
 api/verson.json
 
-# IMPORTANT: Only ignore .js files directly in api/ root
-# DO NOT ignore api/server/** files - they're needed!
+# Ignore ONLY JS files directly inside /api (root)
 api/*.js
 !api/index.js
-!api/server/**
+
+# Allow ALL nested route files
+!api/server/**/*.js
