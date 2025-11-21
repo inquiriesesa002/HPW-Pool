@@ -33,6 +33,9 @@ const connectDB = async () => {
 
 // Middleware to ensure DB connection per request (serverless safe)
 app.use(async (req, res, next) => {
+  // Log request for debugging
+  console.log(`[${req.method}] ${req.url} - Path: ${req.path}`);
+  
   if (mongoose.connection.readyState !== 1) {
     try {
       await connectDB();
@@ -67,11 +70,15 @@ app.post('/api/auth/register', register);
 app.post('/api/auth/login', login);
 app.get('/api/auth/me', protect, getMe);
 
-// Locations
+// Locations (handle both with and without /api prefix for Vercel)
 app.get('/api/locations/continents', getContinents);
+app.get('/locations/continents', getContinents);
 app.get('/api/locations/countries', getCountries);
+app.get('/locations/countries', getCountries);
 app.get('/api/locations/provinces', getProvinces);
+app.get('/locations/provinces', getProvinces);
 app.get('/api/locations/cities', getCities);
+app.get('/locations/cities', getCities);
 
 // Professions
 app.get('/api/professions', getProfessions);
