@@ -9,20 +9,10 @@ require('dotenv').config();
 const app = express();
 
 // --------------------
-// CORS
+// CORS - Allow all origins for Vercel compatibility
 // --------------------
-const allowedOrigins = [
-  "http://localhost:5173",
-  "https://atsjourney.com",
-  "https://hpw-pool.vercel.app"
-];
-
 app.use(cors({
-  origin: function(origin, callback) {
-    if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin)) return callback(null, true);
-    callback(new Error("Not allowed by CORS"));
-  },
+  origin: '*', // Allow all origins
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: [
@@ -37,6 +27,51 @@ app.use(cors({
   ],
   exposedHeaders: ["Content-Range", "X-Content-Range"]
 }));
+
+// --------------------
+// Vercel Path Handling Middleware
+// --------------------
+// Vercel may strip /api prefix when routing to serverless function
+// This middleware ensures paths always have /api prefix (except root)
+app.use((req, res, next) => {
+  const originalPath = req.path;
+  const originalUrl = req.url;
+  const queryString = req.url.includes('?') ? '?' + req.url.split('?')[1] : '';
+  
+  // Log incoming request for debugging
+  console.log(`[Request] ${req.method} ${originalPath} | URL: ${originalUrl} | Headers:`, {
+    'x-vercel-path': req.headers['x-vercel-path'],
+    'x-invoke-path': req.headers['x-invoke-path'],
+    'x-rewrite-url': req.headers['x-rewrite-url']
+  });
+  
+  // Priority 1: Check Vercel-specific headers for original path
+  const vercelPath = req.headers['x-vercel-path'] || req.headers['x-invoke-path'] || req.headers['x-rewrite-url'];
+  if (vercelPath) {
+    const cleanPath = vercelPath.split('?')[0];
+    req.path = cleanPath;
+    req.url = vercelPath;
+    req.originalUrl = vercelPath;
+    console.log(`[Vercel] Using path from header: ${req.method} ${originalPath} -> ${req.path}`);
+    return next();
+  }
+  
+  // Priority 2: Check if path already has /api prefix
+  if (req.path.startsWith('/api') || req.path === '/') {
+    console.log(`[Vercel] Path OK: ${req.method} ${req.path}`);
+    return next();
+  }
+  
+  // Priority 3: If path doesn't start with /api and it's not root, add /api prefix
+  if (req.path !== '/' && !req.path.startsWith('/api')) {
+    req.path = '/api' + req.path;
+    req.url = '/api' + req.url;
+    req.originalUrl = '/api' + originalUrl;
+    console.log(`[Vercel] Added /api prefix: ${req.method} ${originalPath} -> ${req.path}`);
+  }
+  
+  next();
+});
 
 // --------------------
 // Body parsers
@@ -206,6 +241,23 @@ app.get('/api/health', (req, res) => {
 // API root
 app.get('/api', (req, res) => {
   res.json({ success: true, message: 'HPW Pool API' });
+});
+
+// Debug route to test Vercel routing
+app.get('/api/debug', (req, res) => {
+  res.json({
+    success: true,
+    message: 'Debug route working',
+    path: req.path,
+    url: req.url,
+    originalUrl: req.originalUrl,
+    method: req.method,
+    headers: {
+      'x-vercel-path': req.headers['x-vercel-path'],
+      'x-invoke-path': req.headers['x-invoke-path'],
+      'x-rewrite-url': req.headers['x-rewrite-url']
+    }
+  });
 });
 
 // Catch-all 404 (no '*' route)
