@@ -9,11 +9,24 @@ require('dotenv').config();
 const app = express();
 
 // --- MIDDLEWARE ---
+const allowedOrigins = [
+  'https://atsjourney.com',
+  'https://hpw-pool-mu.vercel.app',
+  'http://localhost:5173'
+];
+
 app.use(cors({
-  origin: '*', // Allow all origins for API
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
-  credentials: true
+  origin: function(origin, callback) {
+    if (!origin) return callback(null, true); // allow server-to-server requests or Postman
+    if (allowedOrigins.indexOf(origin) === -1) {
+      return callback(new Error('CORS policy does not allow access from this origin'), false);
+    }
+    return callback(null, true);
+  },
+  credentials: true,
+  methods: ['GET','POST','PUT','DELETE','PATCH','OPTIONS']
 }));
+
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
