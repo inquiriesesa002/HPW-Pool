@@ -111,16 +111,29 @@ app.use(async (req, res, next) => {
 let authRoutes, professionRoutes, professionalRoutes, companyRoutes, jobRoutes, traineeRoutes, adminRoutes, locationRoutes;
 
 try {
+  console.log('📦 Loading routes...');
   authRoutes = require('./server/routes/auth.js');
+  console.log('✅ auth routes loaded');
   professionRoutes = require('./server/routes/professions.js');
+  console.log('✅ profession routes loaded');
   professionalRoutes = require('./server/routes/professionals.js');
+  console.log('✅ professional routes loaded');
   companyRoutes = require('./server/routes/companies.js');
+  console.log('✅ company routes loaded');
   jobRoutes = require('./server/routes/jobs.js');
+  console.log('✅ job routes loaded');
   traineeRoutes = require('./server/routes/trainees.js');
+  console.log('✅ trainee routes loaded');
   adminRoutes = require('./server/routes/admin.js');
+  console.log('✅ admin routes loaded');
   locationRoutes = require('./server/routes/locations.js');
+  console.log('✅ location routes loaded');
+  console.log('✅ All routes loaded successfully');
 } catch (error) {
   console.error('❌ Error loading routes:', error.message);
+  console.error('Error code:', error.code);
+  console.error('Require stack:', error.requireStack || 'N/A');
+  console.error('Full error:', JSON.stringify(error, null, 2));
   console.error('Stack:', error.stack);
   throw error;
 }
