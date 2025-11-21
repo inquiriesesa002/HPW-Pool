@@ -1,28 +1,14 @@
 {
   "version": 2,
-  "buildCommand": "mkdir -p dist && echo 'Backend-only deployment' > dist/index.html",
-  "outputDirectory": "dist",
   "functions": {
     "api/index.js": {
-      "runtime": "nodejs18.x",
-      "maxDuration": 30,
-      "includeFiles": [
-        "api/routes/**",
-        "api/controllers/**",
-        "api/models/**",
-        "api/middleware/**",
-        "api/config/**"
-      ]
+      "runtime": "nodejs18.x"
     }
   },
   "routes": [
     {
       "src": "/api/(.*)",
       "dest": "/api/index.js"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/dist/index.html"
     }
   ]
 }
