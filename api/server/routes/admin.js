@@ -22,8 +22,8 @@ const {
   getProfessions,
   seedProfessions,
   getAdminStats
-} = require('../../controllers/adminController.cjs');
-const { protect, authorize } = require('../../middleware/auth.cjs');
+} = require('../controllers/adminController.cjs');
+const { protect, authorize } = require('../middleware/auth.cjs');
 
 // All admin routes require authentication and admin role
 router.use(protect);
