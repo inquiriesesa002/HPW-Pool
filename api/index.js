@@ -33,15 +33,29 @@ const connectDB = async () => {
 
 // Middleware to fix Vercel path forwarding issue
 app.use((req, res, next) => {
-  // Vercel serverless functions sometimes strip /api prefix
-  // If path doesn't start with /api, add it back
-  if (!req.path.startsWith('/api') && req.path !== '/') {
-    req.url = '/api' + req.path + (req.url.includes('?') ? req.url.substring(req.url.indexOf('?')) : '');
-    req.path = '/api' + req.path;
+  // Vercel serverless: request comes as /api/locations/continents
+  // But Express might receive it as /locations/continents (without /api)
+  // Check both req.path and req.url
+  let actualPath = req.path;
+  let actualUrl = req.url;
+  
+  // If path doesn't start with /api and it's not root, check if we need to add /api
+  if (!actualPath.startsWith('/api') && actualPath !== '/') {
+    // Check if originalUrl has /api
+    if (req.originalUrl && req.originalUrl.startsWith('/api')) {
+      actualPath = req.originalUrl.split('?')[0]; // Remove query params
+      actualUrl = req.originalUrl;
+    } else {
+      // Add /api prefix
+      actualPath = '/api' + actualPath;
+      actualUrl = '/api' + actualUrl;
+    }
+    req.path = actualPath;
+    req.url = actualUrl;
   }
   
   // Log for debugging
-  console.log(`[${req.method}] URL: ${req.url}, Path: ${req.path}, OriginalUrl: ${req.originalUrl}`);
+  console.log(`[${req.method}] OriginalUrl: ${req.originalUrl}, Path: ${req.path}, URL: ${req.url}`);
   next();
 });
 
@@ -82,8 +96,14 @@ app.post('/api/auth/login', login);
 app.get('/api/auth/me', protect, getMe);
 
 // Locations (handle both with and without /api prefix for Vercel)
-app.get('/api/locations/continents', getContinents);
-app.get('/locations/continents', getContinents);
+app.get('/api/locations/continents', (req, res, next) => {
+  console.log('Continents route hit!', req.path, req.url);
+  getContinents(req, res, next);
+});
+app.get('/locations/continents', (req, res, next) => {
+  console.log('Continents route hit (no prefix)!', req.path, req.url);
+  getContinents(req, res, next);
+});
 app.get('/api/locations/countries', getCountries);
 app.get('/locations/countries', getCountries);
 app.get('/api/locations/provinces', getProvinces);
