@@ -1,0 +1,23 @@
+# Ignore root-level routes backup
+routes/
+server-routes-backup/
+
+# Ignore scripts and uploads ONLY
+api/server/scripts/
+api/scripts/
+api/uploads/
+api/server/uploads/
+api/dist/
+api/*.bak
+api/server.js
+api/server.js.bak
+api/verson.json
+api/package.json
+api/package-lock.json
+
+# Ignore ONLY JS files directly inside /api (root)
+api/*.js
+!api/index.js
+
+# Allow ALL nested route files
+!api/server/**/*.js
