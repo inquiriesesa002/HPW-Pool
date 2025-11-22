@@ -1,140 +1,93 @@
-# HPW Pool - Health Professional Work of Pool
+# Backend Setup - HPW Pool
 
-A global platform connecting healthcare professionals worldwide. Find qualified health professionals across continents, countries, provinces, and cities.
+## 📁 Structure
 
-## 🌟 Features
-
-- **Global Search**: Search professionals by profession, location, experience, and ratings
-- **Location Hierarchy**: Continent → Country → Province → City navigation
-- **Professional Profiles**: Detailed profiles with qualifications, experience, and verification status
-- **User Authentication**: Secure login/register system
-- **Admin Dashboard**: Manage professionals, locations, and verifications
-- **Professional Dashboard**: Manage profile, appointments, and analytics
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js (v14 or higher)
-- MongoDB
-- npm or yarn
-
-### Installation
-
-1. **Clone the repository**
-```bash
-git clone <repository-url>
-cd HPW-Pool
+```
+backend/
+├── config/
+│   ├── cloudinary.cjs      # Cloudinary configuration
+│   └── database.cjs         # MongoDB connection
+├── controllers/
+│   ├── adminController.cjs
+│   ├── authController.cjs
+│   ├── companyController.cjs
+│   ├── jobController.cjs
+│   ├── locationController.cjs
+│   ├── professionController.cjs
+│   ├── professionalController.cjs
+│   ├── traineeController.cjs
+│   └── uploadController.cjs
+├── middleware/
+│   ├── auth.cjs             # JWT authentication
+│   └── upload.cjs            # File upload with Cloudinary
+├── models/
+│   ├── City.cjs
+│   ├── Company.cjs
+│   ├── Continent.cjs
+│   ├── Country.cjs
+│   ├── Job.cjs
+│   ├── Profession.cjs
+│   ├── Professional.cjs
+│   ├── Province.cjs
+│   ├── Trainee.cjs
+│   └── User.cjs
+├── routes/
+│   ├── admin.cjs
+│   ├── auth.cjs
+│   ├── companies.cjs
+│   ├── jobs.cjs
+│   ├── locations.cjs
+│   ├── professions.cjs
+│   ├── professionals.cjs
+│   ├── trainees.cjs
+│   └── upload.cjs
+└── server.cjs                # Main Express server
 ```
 
-2. **Install frontend dependencies**
-```bash
-npm install
-```
+## 🔧 Environment Variables
 
-3. **Install backend dependencies**
-```bash
-cd backend
-npm install
-```
+Create a `.env` file in the root directory with:
 
-4. **Set up environment variables**
-
-Create a `.env` file in the `backend` directory:
-```
-MONGO_URI=mongodb://localhost:27017/Company
-JWT_SECRET=your-secret-key-here
+```env
+MONGODB_URI=mongodb+srv://inquiriesesa_db_user:9OOQm5boLEOdNZsi@cluster0.ktqsjbu.mongodb.net/?appName=Cluster0
+JWT_SECRET=your-secret-key-change-in-production
+CLOUDINARY_CLOUD_NAME=dakbch74l
+CLOUDINARY_API_KEY=595899943319583
+CLOUDINARY_API_SECRET=IXoQKDAdHLCWMgOVQyeHk3Lr6v4
 PORT=5000
-
-# Cloudinary Configuration (for image/file uploads)
-CLOUDINARY_CLOUD_NAME=your-cloudinary-cloud-name
-CLOUDINARY_API_KEY=your-cloudinary-api-key
-CLOUDINARY_API_SECRET=your-cloudinary-api-secret
+NODE_ENV=development
 ```
 
-**Note:** Cloudinary account banao: https://cloudinary.com (free tier available)
+## 🚀 Local Development
 
-5. **Seed professions**
 ```bash
-cd backend
-node scripts/seedProfessions.js
+# Install dependencies (from root)
+npm install
+
+# Start backend server
+npm run backend
+# or
+node backend/server.cjs
 ```
 
-6. **Start the development servers**
+## ☁️ Cloudinary Setup
 
-**Frontend:**
-```bash
-npm run dev
-```
+All image and document uploads use Cloudinary. The configuration is in `backend/config/cloudinary.cjs`.
 
-**Backend:**
-```bash
-cd backend
-npm run dev
-```
+### Upload Types:
+- **Images**: Profile pictures, company logos, job images
+- **Documents**: CVs, resumes, certificates
 
-The frontend will run on `http://localhost:5173` and backend on `http://localhost:5000`
+### Upload Folders:
+- `hpw-pool/images` - General images
+- `hpw-pool/professionals/avatars` - Professional avatars
+- `hpw-pool/professionals/cvs` - Professional CVs
+- `hpw-pool/companies/logos` - Company logos
+- `hpw-pool/jobs/images` - Job images
+- `hpw-pool/trainees/avatars` - Trainee avatars
+- `hpw-pool/documents` - General documents
 
-## 📁 Project Structure
-
-```
-HPW-Pool/
-├── backend/
-│   ├── config/
-│   │   └── database.js
-│   ├── controllers/
-│   │   ├── authController.js
-│   │   ├── locationController.js
-│   │   ├── professionController.js
-│   │   └── professionalController.js
-│   ├── middleware/
-│   │   └── auth.js
-│   ├── models/
-│   │   ├── City.js
-│   │   ├── Continent.js
-│   │   ├── Country.js
-│   │   ├── Profession.js
-│   │   ├── Professional.js
-│   │   ├── Province.js
-│   │   └── User.js
-│   ├── routes/
-│   │   ├── auth.js
-│   │   ├── locations.js
-│   │   ├── professions.js
-│   │   └── professionals.js
-│   ├── scripts/
-│   │   └── seedProfessions.js
-│   └── server.js
-├── src/
-│   ├── components/
-│   │   ├── Header.jsx
-│   │   └── Footer.jsx
-│   ├── pages/
-│   │   ├── HomePage.jsx
-│   │   ├── SearchPage.jsx
-│   │   ├── AboutPage.jsx
-│   │   ├── ContactPage.jsx
-│   │   ├── FAQPage.jsx
-│   │   ├── BlogPage.jsx
-│   │   ├── LoginPage.jsx
-│   │   ├── RegisterPage.jsx
-│   │   ├── RegisterProfessionalPage.jsx
-│   │   ├── ContinentPage.jsx
-│   │   ├── CountryPage.jsx
-│   │   ├── ProvincePage.jsx
-│   │   ├── CityPage.jsx
-│   │   ├── ProfessionalProfilePage.jsx
-│   │   ├── admin/
-│   │   │   └── AdminDashboard.jsx
-│   │   └── professional/
-│   │       └── ProfessionalDashboard.jsx
-│   ├── App.jsx
-│   ├── main.jsx
-│   └── index.css
-└── package.json
-```
-
-## 🔌 API Endpoints
+## 📡 API Endpoints
 
 ### Authentication
 - `POST /api/auth/register` - Register new user
@@ -157,23 +110,53 @@ HPW-Pool/
 - `GET /api/professionals` - Get all professionals (with filters)
 - `GET /api/professionals/:id` - Get professional by ID
 - `POST /api/professionals` - Create professional profile (Protected)
-- `PUT /api/professionals/:id` - Update professional profile (Protected)
+- `PUT /api/professionals` - Update professional profile (Protected)
+- `POST /api/professionals/cv` - Upload CV (Protected)
 
-## 🎨 Color Scheme
+### Companies
+- `GET /api/companies` - Get all companies
+- `GET /api/companies/:id` - Get company by ID
+- `POST /api/companies` - Create company profile (Protected)
+- `PUT /api/companies` - Update company profile (Protected)
 
-- **Primary**: Cyan/Teal (#06B6D4, #0891B2)
-- **Secondary**: Green (#10B981)
-- **Accent**: Blue (#3B82F6)
+### Jobs
+- `GET /api/jobs` - Get all jobs (with filters)
+- `GET /api/jobs/:id` - Get job by ID
+- `POST /api/jobs` - Create job (Protected)
+- `PUT /api/jobs/:id` - Update job (Protected)
+- `DELETE /api/jobs/:id` - Delete job (Protected)
 
-## 📝 License
+### Trainees
+- `GET /api/trainees` - Get all trainees
+- `GET /api/trainees/:id` - Get trainee by ID
+- `POST /api/trainees` - Create trainee profile (Protected)
+- `PUT /api/trainees` - Update trainee profile (Protected)
 
-MIT License
+### Upload
+- `POST /api/upload/image` - Upload image (Protected)
+- `POST /api/upload/document` - Upload document (Protected)
+- `DELETE /api/upload/file` - Delete file from Cloudinary (Protected)
 
-## 👥 Contact
+### Admin
+- `GET /api/admin/stats` - Get dashboard stats (Admin only)
+- `GET /api/admin/users` - Get all users (Admin only)
+- `GET /api/admin/professionals` - Get all professionals (Admin only)
+- `PUT /api/admin/professionals/:id/verify` - Verify professional (Admin only)
+- `GET /api/admin/companies` - Get all companies (Admin only)
+- `GET /api/admin/jobs` - Get all jobs (Admin only)
 
-HPW Pool Team
-Email: info@hpwpool.com
+## 🔒 Authentication
 
----
+Most endpoints require authentication. Include the JWT token in the Authorization header:
 
-© 2024 HPW Pool - Health Professional Work of Pool. All rights reserved.
+```
+Authorization: Bearer <your-jwt-token>
+```
+
+## 📝 Notes
+
+- All files use `.cjs` extension for CommonJS compatibility
+- MongoDB connection is handled with connection pooling for Vercel
+- Cloudinary is required for file uploads (no local storage on Vercel)
+- The server automatically detects Vercel environment and adjusts accordingly
+
