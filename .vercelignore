@@ -1,9 +1,0 @@
-server/
-node_modules/
-uploads/
-scripts/
-dist/
-*.log
-*.bak
-
-!api/index.js
