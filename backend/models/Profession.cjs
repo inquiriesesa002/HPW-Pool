@@ -31,6 +31,14 @@ const professionSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  categoryImage: {
+    type: String,
+    default: ''
+  },
+  subcategoryImage: {
+    type: String,
+    default: ''
+  },
   order: {
     type: Number,
     default: 0
