@@ -77,6 +77,7 @@ const jobRoutes = require('./routes/jobs.cjs');
 const traineeRoutes = require('./routes/trainees.cjs');
 const uploadRoutes = require('./routes/upload.cjs');
 const adminRoutes = require('./routes/admin.cjs');
+const blogRoutes = require('./routes/blogs.cjs');
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -88,6 +89,7 @@ app.use('/api/jobs', jobRoutes);
 app.use('/api/trainees', traineeRoutes);
 app.use('/api/upload', uploadRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/blogs', blogRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -124,7 +126,8 @@ app.get('/', (req, res) => {
       jobs: '/api/jobs',
       trainees: '/api/trainees',
       upload: '/api/upload',
-      admin: '/api/admin'
+      admin: '/api/admin',
+      blogs: '/api/blogs'
     }
   });
 });
@@ -165,5 +168,3 @@ if (require.main === module || !process.env.VERCEL) {
   });
 }
 
-
-//new backend update
