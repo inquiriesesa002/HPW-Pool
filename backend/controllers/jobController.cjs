@@ -251,7 +251,8 @@ const createJob = async (req, res) => {
     // Prepare job data
     const jobData = {
       title: req.body.title,
-      profession: req.body.profession,
+      profession: req.body.profession || null, // Profession is now optional
+      category: req.body.category || null, // Add category field
       jobType: req.body.jobType || 'Full-time',
       description: req.body.description,
       company: company._id,
@@ -533,13 +534,6 @@ const createJob = async (req, res) => {
       });
     }
 
-    if (!jobData.profession) {
-      return res.status(400).json({
-        success: false,
-        message: 'Profession is required'
-      });
-    }
-
     if (!jobData.description) {
       return res.status(400).json({
         success: false,
@@ -547,14 +541,20 @@ const createJob = async (req, res) => {
       });
     }
 
-    // Validate profession ObjectId
-    if (!mongoose.Types.ObjectId.isValid(jobData.profession)) {
-      return res.status(400).json({
-        success: false,
-        message: 'Invalid profession ID'
-      });
+    // Profession is now optional - only validate if provided
+    if (jobData.profession) {
+      // Validate profession ObjectId if provided
+      if (!mongoose.Types.ObjectId.isValid(jobData.profession)) {
+        return res.status(400).json({
+          success: false,
+          message: 'Invalid profession ID'
+        });
+      }
+      jobData.profession = new mongoose.Types.ObjectId(jobData.profession);
     }
-    jobData.profession = new mongoose.Types.ObjectId(jobData.profession);
+    
+    // Category is optional - stored as string (no ObjectId conversion needed)
+    // Category value is already a string from the form
 
     console.log('Final jobData.location BEFORE SAVE:', JSON.stringify(jobData.location, null, 2));
     console.log('jobData.location.continents:', jobData.location?.continents, 'Type:', Array.isArray(jobData.location?.continents), 'Length:', jobData.location?.continents?.length);
